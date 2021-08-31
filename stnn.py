@@ -63,7 +63,7 @@ class SaptioTemporalNN(nn.Module):
             if self.mode == 'refine':
                 intra = self.rel_weights.new(self.nx, self.nx).copy_(self.relations[:, 0]).unsqueeze(1)
                 inter = self.rel_weights.new_zeros(self.nx, self.nr - 1, self.nx)
-                inter.masked_scatter_(self.relations[:, 1:], weights)
+                inter.masked_scatter_(self.relations[:, 1:].bool(), weights)  # insert weights for non-zero relations
             if self.mode == 'discover':
                 intra = self.relations[:, 0].unsqueeze(1)
                 inter = weights
