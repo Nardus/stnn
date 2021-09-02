@@ -7,10 +7,10 @@ from .module import MLP
 from .utils import identity
 
 
-class SaptioTemporalNN(nn.Module):
+class SpatioTemporalNN(nn.Module):
     def __init__(self, relations, nx, nt, nd, nz, mode=None, nhid=0, nlayers=1, dropout_f=0., dropout_d=0.,
                  activation='tanh', periode=1):
-        super(SaptioTemporalNN, self).__init__()
+        super(SpatioTemporalNN, self).__init__()
         assert (nhid > 0 and nlayers > 1) or (nhid == 0 and nlayers == 1)
         # attributes
         self.nt = nt
