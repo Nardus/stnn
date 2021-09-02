@@ -13,9 +13,9 @@ import torch.optim as optim
 import torch.backends.cudnn as cudnn
 
 
-from datasets import dataset_factory
-from utils import DotDict, Logger, rmse
-from stnn import SaptioTemporalNN
+from .datasets import dataset_factory
+from .utils import DotDict, Logger, rmse
+from .stnn import SaptioTemporalNN
 
 
 #######################################################################################################################

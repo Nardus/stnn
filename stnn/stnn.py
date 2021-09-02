@@ -3,8 +3,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-from module import MLP
-from utils import identity
+from .module import MLP
+from .utils import identity
 
 
 class SaptioTemporalNN(nn.Module):
@@ -49,7 +49,7 @@ class SaptioTemporalNN(nn.Module):
                 idx = timesteps % periode == t
                 idx_data = idx.view(-1, 1, 1).expand_as(self.factors)
                 init = torch.Tensor(self.nx, self.nz).uniform_(-initrange, initrange).repeat(idx.sum().item(), 1, 1)
-            self.factors.data.masked_scatter_(idx_data, init.view(-1))
+                self.factors.data.masked_scatter_(idx_data, init.view(-1))
         if self.mode == 'refine':
             self.rel_weights.data.fill_(0.5)
         elif self.mode == 'discover':

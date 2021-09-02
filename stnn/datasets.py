@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 
-from utils import DotDict, normalize
+from .utils import DotDict, normalize
 
 
 def dataset_factory(data_dir, name, k=1):
