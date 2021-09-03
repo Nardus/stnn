@@ -18,7 +18,7 @@ class SpatioTemporalNN(nn.Module):
         self.nz = nz
         self.mode = mode
         # kernel
-        self.activation = F.tanh if activation == 'tanh' else identity if activation == 'identity' else None
+        self.activation = torch.tanh if activation == 'tanh' else identity if activation == 'identity' else None
         device = relations.device
         if mode is None or mode == 'refine':
             self.relations = torch.cat((torch.eye(nx).to(device).unsqueeze(1), relations), 1)
