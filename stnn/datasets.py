@@ -37,3 +37,34 @@ def heat(data_dir, file='heat.csv'):
     relations = torch.Tensor(np.genfromtxt(os.path.join(data_dir, 'heat_relations.csv')))
     relations = normalize(relations).unsqueeze(1)
     return opt, data, relations
+
+
+def load_data(obs_path, relation_paths):
+    """Load observed data and spatial relations
+
+    Parameters
+    ----------
+    obs_path : str
+        Path to observation data.
+    relation_paths: list
+        List of paths to spatial relation matrices
+
+    Returns
+    -------
+    (torch.Tensor, torch.Tensor)
+        A tuple representing observed data and relations, respectively
+    """
+    # Load data
+    all_data = np.genfromtxt(obs_path)
+    relations = (np.genfromtxt(r) for r in relation_paths)
+    
+    # Convert to tensors
+    nrows = all_data.shape[0]
+    ncols = all_data.shape[1]  
+    all_data = torch.Tensor(all_data).view(nrows, ncols, 1) # assume univariate data
+
+    relations = (torch.Tensor(x) for x in relations)
+    relations = [normalize(x).unsqueeze(1) for x in relations]
+    relations = torch.cat(relations, 1)
+
+    return all_data, relations

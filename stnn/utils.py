@@ -25,6 +25,16 @@ def identity(input):
     return input
 
 
+def predict(model, timesteps):
+        """Predict from a SpatioTemporalNN model"""
+        model.eval()
+        
+        with torch.no_grad():
+            predictions, _ = model.generate(timesteps)
+        
+        return predictions
+
+
 class DotDict(dict):
     """dot.notation access to dictionary attributes"""
     __getattr__ = dict.get

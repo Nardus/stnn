@@ -11,7 +11,8 @@ setup(
                       "numpy>=1.21.0",
                       "torch>=1.9.0",
                       "configargparse>=1.5.1",
-                      "tqdm>=4.61.1"],
+                      "tqdm>=4.61.1",
+                      "ray>=1.6.0"],
 
     classifiers=[
         "Intended Audience :: Science/Research",
