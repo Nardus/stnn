@@ -45,7 +45,7 @@ default_config = {
 }
 
 
-def train_stnn_model(config, obs_path, relation_paths, nt_train, random_seed, 
+def train_stnn_model(config, obs_path, relation_paths, train_inds, random_seed, 
                      allow_gpu = False, validation_prop=0.2, checkpoint_dir=None):
     """Train an stnn model using a dictionary of hyper-parameters
     
@@ -57,8 +57,8 @@ def train_stnn_model(config, obs_path, relation_paths, nt_train, random_seed,
         Path to observation data.
     relation_paths: list
         List of paths to spatial relation matrices
-    nt_train : int
-        Use the first nt_train observations for training and validation
+    train_inds : list
+        List of indices specifying the data rows to use for training and validation
     random_seed: int
         A random seed to pass to all utilized GPUs (not used when allow_gpu=False)
     allow_gpu : bool
@@ -96,12 +96,16 @@ def train_stnn_model(config, obs_path, relation_paths, nt_train, random_seed,
         periode = nt
 
     # Split data
-    if validation_prop >= 1:
-        raise ValueError("validation_prop should be less than 1")
+    if validation_prop <=0 or validation_prop >= 1:
+        raise ValueError("validation_prop should be in (0, 1)")
     
+    nt_train = len(train_inds)  # number of rows in training data
     nt_actual = int(nt_train * (1 - validation_prop))
-    train_data = all_data[:nt_actual]
-    validation_data = all_data[nt_actual:nt_train]
+    train_subset_inds = train_inds[:nt_actual]
+    val_subset_inds = train_inds[nt_actual:nt_train]
+
+    train_data = all_data[train_subset_inds]
+    validation_data = all_data[val_subset_inds]
 
     train_data = train_data.to(device)
     validation_data = validation_data.to(device)
