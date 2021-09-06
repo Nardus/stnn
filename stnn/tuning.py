@@ -40,9 +40,14 @@ default_config = {
     # run-specific (user-specified) params: these currently have no defaults
     "obs_periodicity": None,   # periodicity of weights at initialization
     "mode": None,              # mode to run model in (None | "refine" | "discover")
-    "nepoch": None,            # number of epochs to train for
     "patience": None,          # number of epoch to wait before trigerring learning rate decay
-    "batch_size": None         # batch size for training
+    "batch_size": None,        # batch size for training
+    "obs_path": None,          # path to observation data
+    "relation_paths": None,    # list of paths to relation data
+    "train_inds": None,        # list of observation data indices (rows) to use for training/validation
+    "validation_prop": None,   # proportion of training samples to use for validation
+    "random_seed": None,       # random seed
+    "allow_gpu": None            # whether training should be performed on a gpu
 }
 
 
@@ -77,8 +82,7 @@ class stnnTrainable(tune.Trainable):
         """
         # Data loading - performed only during initial setup 
         # (and not when setup is called by reset() below)
-        # TODO: add to config dict: obs_path, relation_paths, train_inds, random_seed, allow_gpu, validation_prop=0.2
-        if not self.initialized:
+        if not hasattr(self, "initialized"):
             # Device setup
             if config["allow_gpu"]:
                 self.device = torch.device("cuda:0")
@@ -124,7 +128,7 @@ class stnnTrainable(tune.Trainable):
         else:
             periode = self.nt
 
-        model = SpatioTemporalNN(relations, self.nx, self.nt_actual, self.nd, self.nz, 
+        model = SpatioTemporalNN(self.relations, self.nx, self.nt_actual, self.nd, self.nz, 
                                  mode = config["mode"], 
                                  nhid = config["nhid"], 
                                  nlayers = config["nlayers"],
@@ -237,8 +241,6 @@ class stnnTrainable(tune.Trainable):
             x_pred, _ = self.model.generate(self.validation_data.shape[0])
             score = rmse(x_pred, self.validation_data)
 
-        tune.report()
-
         # schedule lr reduction
         if self.config["patience"] > 0 and score < 1:
             self.lr_scheduler.step(score)
@@ -271,20 +273,14 @@ class stnnTrainable(tune.Trainable):
 
 
 # Additional utility functions
-def restore_model(model_settings, config, allow_gpu=False):
+def restore_model(checkpoint_path, config, allow_gpu=False):
         """
         Restore a checkpointed model after tuning
 
         Parameters
         ----------
-        model_settings : dict
-            Dictionary recording the conditions used during training, with the following keys:
-                obs_path: Path to observation data
-                relation_paths: List of paths to relation data
-                nt_train: number of samples to use as training data
-                validation_prop: Proportion of nt_train to use for validation
-                random_seed: Random seed used
-                checkpoint_path: Path to a checkpoint to restore
+        checkpoint_path: str
+            Path to a checkpoint to restore
 
         config: dict
             Tuned hyper-parameters
@@ -296,12 +292,12 @@ def restore_model(model_settings, config, allow_gpu=False):
         """
         if allow_gpu:
             device = torch.device("cuda:0")
-            torch.cuda.manual_seed_all(model_settings["random_seed"])
+            torch.cuda.manual_seed_all(config["random_seed"])
         else:
             device = torch.device("cpu")
 
-        all_data, relations = load_data(model_settings["obs_path"], 
-                                        model_settings["relation_paths"])
+        all_data, relations = load_data(config["obs_path"], 
+                                        config["relation_paths"])
         all_data = all_data.to(device)
         relations = relations.to(device)
 
@@ -310,7 +306,8 @@ def restore_model(model_settings, config, allow_gpu=False):
         nx = all_data.shape[1]  # number of locations (columns)
         nz = nd                 # dimension of observations in latent space
         
-        nt_actual = int(model_settings["nt_train"] * (1 - model_settings["validation_prop"]))
+        nt_train = len(config["train_inds"])
+        nt_actual = int(nt_train * (1 - config["validation_prop"]))
 
         if config["obs_periodicity"] > 0:
             # if periode < nt, latent factors will be initialized with a periodicity
@@ -327,8 +324,7 @@ def restore_model(model_settings, config, allow_gpu=False):
                                  activation = config["activation"],
                                  periode = periode)
         model = model.to(device)
-
-        checkpoint_path = os.path.join(model_settings["checkpoint_path"], "checkpoint")
+        
         model_state, _ = torch.load(checkpoint_path)
         model.load_state_dict(model_state)
 
