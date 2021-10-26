@@ -38,6 +38,7 @@ default_config = {
     "l1_rel": 1e-8,            # l1 regularization on relation discovery mode
 
     # run-specific (user-specified) params: these currently have no defaults
+    "task": "regression",      # task (regression | classification) used to determine loss function
     "obs_periodicity": None,   # periodicity of weights at initialization
     "mode": None,              # mode to run model in (None | "refine" | "discover")
     "patience": None,          # number of epoch to wait before trigerring learning rate decay
@@ -89,6 +90,17 @@ class stnnTrainable(tune.Trainable):
                 torch.cuda.manual_seed_all(config["random_seed"])
             else:
                 self.device = torch.device("cpu")
+
+            # Loss function
+            if config["task"] == "regression":
+                self.loss_function = functional.mse_loss  # delta in equation 1 of Delasalles et al. 2019
+                self.loss_summary = rmse                  # used for reporting - unlike loss function, error totalled across locations, then averaged across timepoints
+            elif config["task"] == "classification":
+                self.loss_function = functional.binary_cross_entropy_with_logits
+                self.loss_summary = functional.binary_cross_entropy_with_logits
+            else:
+                raise NotImplementedError("Unknown task {}".format(config["task"]) + 
+                                          " - choose from ['regression', 'classification']")
 
             # Load data
             all_data, relations = load_data(config["obs_path"], config["relation_paths"])
@@ -192,10 +204,10 @@ class stnnTrainable(tune.Trainable):
 
             # closure
             x_rec = self.model.dec_closure(input_t, input_x)
-            mse_dec = functional.mse_loss(x_rec, x_target)
+            loss_dec = self.loss_function(x_rec, x_target)
 
             # backward
-            mse_dec.backward()
+            loss_dec.backward()
 
             # step
             self.optimizer.step()
@@ -239,7 +251,10 @@ class stnnTrainable(tune.Trainable):
 
         with torch.no_grad():
             x_pred, _ = self.model.generate(self.validation_data.shape[0])
-            score = rmse(x_pred, self.validation_data)
+            score = self.loss_function(x_pred, self.validation_data)
+
+        if isinstance(score, torch.Tensor):
+            score = score.item()
 
         # schedule lr reduction
         if self.config["patience"] > 0 and score < 1:
@@ -247,7 +262,7 @@ class stnnTrainable(tune.Trainable):
 
         # report 
         lr = self.optimizer.param_groups[0]["lr"]
-        return {"validation_rmse": score, "learn_rate": lr}
+        return {"validation_loss": score, "learn_rate": lr}
 
 
     # Other methods
