@@ -46,7 +46,7 @@ default_config = {
     "obs_path": None,          # path to observation data
     "relation_paths": None,    # list of paths to relation data
     "train_inds": None,        # list of observation data indices (rows) to use for training/validation
-    "validation_prop": None,   # proportion of training samples to use for validation
+    "validation_samples": None,# number of training samples to use for validation
     "preprocessor": None,      # optional data preprocessing function (called seperately on training and validation data)
     "random_seed": None,       # random seed
     "allow_gpu": None            # whether training should be performed on a gpu
@@ -102,12 +102,14 @@ class stnnTrainable(tune.Trainable):
             self.nz = self.nd            # dimension of observations in latent space
 
             # Split data
-            if config["validation_prop"] <=0 or config["validation_prop"] >= 1:
-                raise ValueError("validation_prop should be in (0, 1)")
-            
             train_inds = config["train_inds"]
             nt_train = len(train_inds)  # number of rows in training data
-            self.nt_actual = int(nt_train * (1 - config["validation_prop"]))
+
+            if config["validation_samples"] < 1 or config["validation_samples"] >= nt_train:
+                raise ValueError("validation_samples should be an integer in (0, {})".format(nt_train))
+            
+            
+            self.nt_actual = nt_train - int(config["validation_samples"])
             train_subset_inds = train_inds[:self.nt_actual]
             val_subset_inds = train_inds[self.nt_actual:nt_train]
 
@@ -323,7 +325,7 @@ def restore_model(checkpoint_path, config, allow_gpu=False):
         nz = nd                 # dimension of observations in latent space
         
         nt_train = len(config["train_inds"])
-        nt_actual = int(nt_train * (1 - config["validation_prop"]))
+        nt_actual = nt_train - int(config["validation_samples"])
 
         if config["obs_periodicity"] > 0:
             # if periode < nt, latent factors will be initialized with a periodicity
