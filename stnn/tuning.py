@@ -47,34 +47,24 @@ default_config = {
     "relation_paths": None,    # list of paths to relation data
     "train_inds": None,        # list of observation data indices (rows) to use for training/validation
     "validation_prop": None,   # proportion of training samples to use for validation
+    "preprocessor": None,      # optional data preprocessing function (called seperately on training and validation data)
     "random_seed": None,       # random seed
     "allow_gpu": None            # whether training should be performed on a gpu
 }
 
 
 class stnnTrainable(tune.Trainable):
+    """
+    Trainable wrapper for the Spatio-Temporal Neural net model, compatible with ray.tune
+    """
     def setup(self, config):
         """
-        Trainable wrapper for the Spatio-Temporal Neural net model, compatible with ray.tune
+        Prepare object for training
         
         Parameters
         ----------
         config : dict
-            A dictionary of model hyper-parameters
-        obs_path : str
-            Path to observation data.
-        relation_paths: list
-            List of paths to spatial relation matrices
-        train_inds : list
-            List of indices specifying the data rows to use for training and validation
-        random_seed: int
-            A random seed to pass to all utilized GPUs (not used when allow_gpu=False)
-        allow_gpu : bool
-            If true, all available GPUs will be used 
-        validation_prop : float, optional
-            Proportion of training data to hold back for model validation (i.e. evaluation of tuning)
-        checkpoint_dir : str
-            Directory for loading/saving model checkpoints
+            A dictionary of model hyper-parameters (see default_config)
 
         Raises
         ----------
@@ -123,6 +113,17 @@ class stnnTrainable(tune.Trainable):
 
             train_data = all_data[train_subset_inds]
             validation_data = all_data[val_subset_inds]
+            
+            # Preprocess data
+            if config["preprocessor"]:
+                self.preprocessor = config["preprocessor"]
+            else:
+                # Return data as is (implemented so other methods don't have to check whether
+                # preprocessing was requested)
+                self.preprocessor = lambda x: x
+            
+            train_data = self.preprocessor(train_data)
+            validation_data = self.preprocessor(validation_data)
 
             self.train_data = train_data.to(self.device)
             self.validation_data = validation_data.to(self.device)
